@@ -7,17 +7,113 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         :root { --sky: #87CEEB; --teal: #00ffcc; --bulls: #ce1141; --gold: #ffd700; }
-        body { background: #111; color: #fff; font-family: sans-serif; margin: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; overflow: hidden; touch-action: none; }
-        #ui { width: 95%; max-width: 800px; display: flex; justify-content: space-between; padding: 10px; font-weight: bold; font-size: 18px; }
-        #game-container { position: relative; border: 2px solid #fff; width: 95vw; height: 60vw; max-width: 800px; max-height: 500px; overflow: hidden; background: var(--sky); }
-        canvas { width: 100%; height: 100%; display: block; }
-        .screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 30; text-align: center; padding: 20px; box-sizing: border-box; }
+        
+        body { 
+            background: #111; 
+            color: #fff; 
+            font-family: sans-serif; 
+            margin: 0; 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            justify-content: center; 
+            min-height: 100vh; 
+            overflow: hidden; 
+            touch-action: none; 
+        }
+
+        /* Improved UI responsiveness */
+        #ui { 
+            width: 95%; 
+            max-width: 800px; 
+            display: flex; 
+            justify-content: space-between; 
+            padding: 10px; 
+            font-weight: bold; 
+            font-size: clamp(14px, 4vw, 18px); /* Responsive text */
+        }
+
+        #game-container { 
+            position: relative; 
+            border: 2px solid #fff; 
+            width: 95vw; 
+            /* Maintain 8:5 aspect ratio */
+            aspect-ratio: 800 / 500;
+            max-width: 800px; 
+            max-height: 500px; 
+            overflow: hidden; 
+            background: var(--sky); 
+        }
+
+        canvas { 
+            width: 100%; 
+            height: 100%; 
+            display: block; 
+            image-rendering: pixelated; /* Keeps it crisp on high-DPI screens */
+        }
+
+        .screen { 
+            position: absolute; 
+            top: 0; 
+            left: 0; 
+            width: 100%; 
+            height: 100%; 
+            background: rgba(0,0,0,0.95); 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            justify-content: center; 
+            z-index: 30; 
+            text-align: center; 
+            padding: 10px; 
+            box-sizing: border-box; 
+        }
+
         .hidden { display: none !important; }
-        .char-grid { display: flex; gap: 20px; margin: 20px 0; }
-        .char-card { border: 2px solid #444; padding: 10px; cursor: pointer; border-radius: 10px; background: #222; width: 80px; font-size: 12px; }
-        .char-card.selected { border-color: var(--teal); background: #333; transform: scale(1.1); }
-        .wallet-input { padding: 12px; width: 80%; max-width: 300px; background: #222; border: 2px solid var(--teal); color: #fff; margin: 10px 0; text-align: center; border-radius: 8px; }
-        button { background: var(--teal); color: #000; border: none; padding: 12px 30px; font-weight: bold; cursor: pointer; border-radius: 5px; text-transform: uppercase; }
+
+        .char-grid { 
+            display: flex; 
+            gap: 10px; 
+            margin: 15px 0; 
+        }
+
+        .char-card { 
+            border: 2px solid #444; 
+            padding: 8px; 
+            cursor: pointer; 
+            border-radius: 10px; 
+            background: #222; 
+            width: 70px; 
+            font-size: 11px; 
+        }
+
+        .char-card.selected { border-color: var(--teal); background: #333; transform: scale(1.05); }
+
+        .wallet-input { 
+            padding: 10px; 
+            width: 85%; 
+            max-width: 250px; 
+            background: #222; 
+            border: 2px solid var(--teal); 
+            color: #fff; 
+            margin: 10px 0; 
+            text-align: center; 
+            border-radius: 8px; 
+            font-size: 16px; /* Prevents iOS zoom on focus */
+        }
+
+        button { 
+            background: var(--teal); 
+            color: #000; 
+            border: none; 
+            padding: 10px 25px; 
+            font-weight: bold; 
+            cursor: pointer; 
+            border-radius: 5px; 
+            text-transform: uppercase; 
+        }
+
+        h1 { font-size: clamp(24px, 6vw, 36px); }
     </style>
 </head>
 <body>
@@ -32,7 +128,7 @@
         <div id="start-screen" class="screen">
             <h1 style="color:var(--teal); margin: 0;">HYPE SPRINT</h1>
             <input type="text" id="wallet-field" class="wallet-input" placeholder="Enter Wallet Address">
-            <p>CHOOSE CHARACTER</p>
+            <p style="margin: 5px 0; font-size: 14px;">CHOOSE CHARACTER</p>
             <div class="char-grid">
                 <div class="char-card selected" onclick="selectChar('bulls', this)">
                     <div style="color:var(--bulls)">BULLS</div>
@@ -58,7 +154,6 @@
     </div>
 
     <script>
-        // --- 2. UPDATED SUPABASE CONNECTION ---
         const supabaseUrl = 'https://kozrevqywrggxwpvdyvp.supabase.co'; 
         const supabaseKey = 'sb_publishable_vgSiz3Y39XChvS4X58U_4Q_lbxZK3gt'; 
         const _supabase = supabase.createClient(supabaseUrl, supabaseKey);
@@ -67,7 +162,16 @@
         const ctx = canvas.getContext('2d');
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         
+        // SFX and Game State
+        const sfx = {
+            jump: () => playSound(150, 'square', 0.2, 0.1),
+            shoot: () => playSound(80, 'sawtooth', 0.1, 0.1),
+            collect: () => playSound(800, 'sine', 0.3, 0.2),
+            die: () => playSound(100, 'triangle', 0.8, 0.3)
+        };
+
         function playSound(freq, type, duration, vol) {
+            if(audioCtx.state === 'suspended') return;
             const osc = audioCtx.createOscillator();
             const gain = audioCtx.createGain();
             osc.type = type;
@@ -75,18 +179,9 @@
             osc.frequency.exponentialRampToValueAtTime(freq > 100 ? 10 : freq * 2, audioCtx.currentTime + duration);
             gain.gain.setValueAtTime(vol, audioCtx.currentTime);
             gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
-            osc.connect(gain);
-            gain.connect(audioCtx.destination);
-            osc.start();
-            osc.stop(audioCtx.currentTime + duration);
+            osc.connect(gain); gain.connect(audioCtx.destination);
+            osc.start(); osc.stop(audioCtx.currentTime + duration);
         }
-
-        const sfx = {
-            jump: () => playSound(150, 'square', 0.2, 0.1),
-            shoot: () => playSound(80, 'sawtooth', 0.1, 0.1),
-            collect: () => playSound(800, 'sine', 0.3, 0.2),
-            die: () => playSound(100, 'triangle', 0.8, 0.3)
-        };
 
         let score = 0, timeLeft = 600, gameRunning = false, baseSpeed = 6, gameSpeed = 6;
         let selectedChar = 'bulls';
@@ -107,15 +202,26 @@
             gameSpeed = baseSpeed;
         }
 
+        // Mobile Touch Logic
         let touchStartY = 0;
-        canvas.addEventListener('touchstart', e => { touchStartY = e.changedTouches[0].screenY; }, false);
+        canvas.addEventListener('touchstart', e => { 
+            touchStartY = e.changedTouches[0].clientY; 
+            e.preventDefault(); 
+        }, {passive: false});
+
         canvas.addEventListener('touchend', e => {
             if(!gameRunning) return;
-            let swipeDist = touchStartY - e.changedTouches[0].screenY;
-            if (swipeDist > 30) { 
+            let swipeDist = touchStartY - e.changedTouches[0].clientY;
+            if (swipeDist > 20) { 
                 if(player.grounded) { player.vy = player.jump; sfx.jump(); }
-            } else if (swipeDist < -30) { throwBall(); }
-        }, false);
+            } else if (swipeDist < -20) { 
+                throwBall(); 
+            } else {
+                // Single tap jump for ease
+                if(player.grounded) { player.vy = player.jump; sfx.jump(); }
+            }
+            e.preventDefault();
+        }, {passive: false});
 
         window.onkeydown = (e) => {
             if((e.code === 'Space' || e.code === 'ArrowUp') && player.grounded) { player.vy = player.jump; sfx.jump(); }
@@ -217,33 +323,23 @@
             requestAnimationFrame(loop);
         }
 
-        // --- 3. UPDATED ENDGAME WITH AUTO-SAVE ---
         async function endGame() {
             if(!gameRunning) return;
             gameRunning = false;
             sfx.die();
-            
             const wallet = document.getElementById('wallet-field').value;
             const finalScore = score;
-            
             document.getElementById('final-score').innerText = finalScore;
             document.getElementById('game-over-screen').classList.remove('hidden');
-
             try {
-                const { error } = await _supabase
-                    .from('leaderboard')
-                    .insert([{ 
-                        wallet_address: wallet, 
-                        score: finalScore, 
-                        character_type: selectedChar 
-                    }]);
-                
+                const { error } = await _supabase.from('leaderboard').insert([{ 
+                    wallet_address: wallet, score: finalScore, character_type: selectedChar 
+                }]);
                 if (error) throw error;
-                document.getElementById('sync-status').innerText = "Score saved to Leaderboard!";
+                document.getElementById('sync-status').innerText = "Score saved!";
                 document.getElementById('sync-status').style.color = "#00ffcc";
             } catch (err) {
-                console.error("Save error:", err);
-                document.getElementById('sync-status').innerText = "Sync failed. Check connection.";
+                document.getElementById('sync-status').innerText = "Sync failed.";
                 document.getElementById('sync-status').style.color = "#ff4444";
             }
         }
