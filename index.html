@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Hype Sprint - Leaderboard Connected</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root { --sky: #87CEEB; --teal: #00ffcc; --bulls: #ce1141; --gold: #ffd700; }
+        body { background: #111; color: #fff; font-family: sans-serif; margin: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; overflow: hidden; touch-action: none; }
+        #ui { width: 95%; max-width: 800px; display: flex; justify-content: space-between; padding: 10px; font-weight: bold; font-size: 18px; }
+        #game-container { position: relative; border: 2px solid #fff; width: 95vw; height: 60vw; max-width: 800px; max-height: 500px; overflow: hidden; background: var(--sky); }
+        canvas { width: 100%; height: 100%; display: block; }
+        .screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 30; text-align: center; padding: 20px; box-sizing: border-box; }
+        .hidden { display: none !important; }
+        .char-grid { display: flex; gap: 20px; margin: 20px 0; }
+        .char-card { border: 2px solid #444; padding: 10px; cursor: pointer; border-radius: 10px; background: #222; width: 80px; font-size: 12px; }
+        .char-card.selected { border-color: var(--teal); background: #333; transform: scale(1.1); }
+        .wallet-input { padding: 12px; width: 80%; max-width: 300px; background: #222; border: 2px solid var(--teal); color: #fff; margin: 10px 0; text-align: center; border-radius: 8px; }
+        button { background: var(--teal); color: #000; border: none; padding: 12px 30px; font-weight: bold; cursor: pointer; border-radius: 5px; text-transform: uppercase; }
+    </style>
+</head>
+<body>
+
+    <div id="ui">
+        <div>SCORE: <span id="score">0</span></div>
+        <div style="color: var(--teal);">SPEED: x<span id="speed-lvl">1.0</span></div>
+        <div>TIME: <span id="timer">10:00</span></div>
+    </div>
+
+    <div id="game-container">
+        <div id="start-screen" class="screen">
+            <h1 style="color:var(--teal); margin: 0;">HYPE SPRINT</h1>
+            <input type="text" id="wallet-field" class="wallet-input" placeholder="Enter Wallet Address">
+            <p>CHOOSE CHARACTER</p>
+            <div class="char-grid">
+                <div class="char-card selected" onclick="selectChar('bulls', this)">
+                    <div style="color:var(--bulls)">BULLS</div>
+                </div>
+                <div class="char-card" onclick="selectChar('teal', this)">
+                    <div style="color:var(--teal)">TITAN</div>
+                </div>
+                <div class="char-card" onclick="selectChar('gold', this)">
+                    <div style="color:var(--gold)">GHOST</div>
+                </div>
+            </div>
+            <button onclick="checkAndStart()">Enter Game</button>
+        </div>
+
+        <div id="game-over-screen" class="screen hidden">
+            <h1 style="color:#ff4444;">GAME OVER</h1>
+            <h2 style="color: var(--gold)">SCORE: <span id="final-score">0</span></h2>
+            <p id="sync-status" style="font-size: 12px; color: #888;">Syncing score...</p>
+            <button onclick="location.reload()">Try Again</button>
+        </div>
+
+        <canvas id="gameCanvas" width="800" height="500"></canvas>
+    </div>
+
+    <script>
+        // --- 2. UPDATED SUPABASE CONNECTION ---
+        const supabaseUrl = 'https://kozrevqywrggxwpvdyvp.supabase.co'; 
+        const supabaseKey = 'sb_publishable_vgSiz3Y39XChvS4X58U_4Q_lbxZK3gt'; 
+        const _supabase = supabase.createClient(supabaseUrl, supabaseKey);
+
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        
+        function playSound(freq, type, duration, vol) {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = type;
+            osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(freq > 100 ? 10 : freq * 2, audioCtx.currentTime + duration);
+            gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + duration);
+        }
+
+        const sfx = {
+            jump: () => playSound(150, 'square', 0.2, 0.1),
+            shoot: () => playSound(80, 'sawtooth', 0.1, 0.1),
+            collect: () => playSound(800, 'sine', 0.3, 0.2),
+            die: () => playSound(100, 'triangle', 0.8, 0.3)
+        };
+
+        let score = 0, timeLeft = 600, gameRunning = false, baseSpeed = 6, gameSpeed = 6;
+        let selectedChar = 'bulls';
+        const gravity = 0.8;
+        const player = { x: 120, y: 380, w: 50, h: 80, vy: 0, jump: -16, grounded: false, anim: 0 };
+        const nftBox = { x: 900, y: 200, w: 50, h: 60 };
+        const obstacles = [{ x: 800, y: 460 }, { x: 1300, y: 460 }];
+        const darts = [{ x: 1000, y: 150, w: 40, h: 10 }, { x: 1600, y: 250, w: 40, h: 10 }];
+        const clouds = [{x: 100, y: 50, s: 0.2}, {x: 400, y: 120, s: 0.35}, {x: 700, y: 80, s: 0.25}];
+        const balls = [];
+
+        function selectChar(type, el) {
+            selectedChar = type;
+            document.querySelectorAll('.char-card').forEach(c => c.classList.remove('selected'));
+            el.classList.add('selected');
+            player.jump = (type === 'teal') ? -20 : -16;
+            baseSpeed = (type === 'gold') ? 8 : 6;
+            gameSpeed = baseSpeed;
+        }
+
+        let touchStartY = 0;
+        canvas.addEventListener('touchstart', e => { touchStartY = e.changedTouches[0].screenY; }, false);
+        canvas.addEventListener('touchend', e => {
+            if(!gameRunning) return;
+            let swipeDist = touchStartY - e.changedTouches[0].screenY;
+            if (swipeDist > 30) { 
+                if(player.grounded) { player.vy = player.jump; sfx.jump(); }
+            } else if (swipeDist < -30) { throwBall(); }
+        }, false);
+
+        window.onkeydown = (e) => {
+            if((e.code === 'Space' || e.code === 'ArrowUp') && player.grounded) { player.vy = player.jump; sfx.jump(); }
+            if((e.code === 'KeyF' || e.code === 'Enter') && gameRunning) throwBall();
+        };
+
+        function throwBall() {
+            balls.push({ x: player.x + player.w, y: player.y + 30, r: 10, vx: 12, vy: -4, bounces: 0 });
+            sfx.shoot();
+        }
+
+        function checkAndStart() {
+            if(document.getElementById('wallet-field').value.length < 5) return alert("Enter Wallet!");
+            audioCtx.resume();
+            document.getElementById('start-screen').classList.add('hidden');
+            gameRunning = true;
+            loop();
+            setInterval(() => { 
+                if(gameRunning) { 
+                    timeLeft--; 
+                    let mins = Math.floor(timeLeft / 60), secs = timeLeft % 60;
+                    document.getElementById('timer').innerText = `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+                    if(timeLeft <= 0) endGame(); 
+                } 
+            }, 1000);
+        }
+
+        function drawAvatar(x, y) {
+            player.anim += (gameSpeed * 0.02);
+            let legSwing = Math.sin(player.anim) * 12, armSwing = Math.cos(player.anim) * 12;
+            let mainColor = selectedChar === 'bulls' ? '#ce1141' : (selectedChar === 'teal' ? '#00ffcc' : '#ffd700');
+            ctx.strokeStyle = "#ffdbac"; ctx.lineWidth = 6;
+            ctx.beginPath(); ctx.moveTo(x + 15, y + 70); ctx.lineTo(x + 10 - legSwing, y + 90); ctx.stroke(); 
+            ctx.beginPath(); ctx.moveTo(x + 35, y + 70); ctx.lineTo(x + 40 + legSwing, y + 90); ctx.stroke(); 
+            ctx.beginPath(); ctx.moveTo(x + 5, y + 50); ctx.lineTo(x - 10 - armSwing, y + 65); ctx.stroke(); 
+            ctx.beginPath(); ctx.moveTo(x + 45, y + 50); ctx.lineTo(x + 60 + armSwing, y + 65); ctx.stroke(); 
+            ctx.fillStyle = mainColor; ctx.fillRect(x + 5, y + 40, 40, 35);
+            ctx.fillStyle = "#fff"; ctx.font = "bold 12px Arial"; ctx.textAlign="center"; ctx.fillText("00", x + 25, y + 65);
+            ctx.fillStyle = "#00ffcc";
+            for(let i=0; i<6; i++) { ctx.beginPath(); ctx.moveTo(x+(i*9), y+15); ctx.lineTo(x+(i*9)+4, y-8); ctx.lineTo(x+(i*9)+8, y+15); ctx.fill(); }
+            ctx.fillStyle = "#222"; ctx.fillRect(x + 5, y + 10, 40, 12); 
+            ctx.fillStyle = "#ffdbac"; ctx.fillRect(x + 8, y + 22, 34, 18); 
+            ctx.strokeStyle = "#ffd700"; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x + 25, y + 42, 6, 0, Math.PI); ctx.stroke();
+        }
+
+        function loop() {
+            if(!gameRunning) return;
+            ctx.clearRect(0, 0, 800, 500);
+            
+            clouds.forEach(c => {
+                c.x -= (c.s * gameSpeed * 0.5);
+                if(c.x < -150) c.x = 850;
+                ctx.fillStyle = "rgba(255, 255, 255, 0.8)";
+                ctx.beginPath(); ctx.arc(c.x, c.y, 30, 0, Math.PI * 2); ctx.arc(c.x + 25, c.y - 10, 35, 0, Math.PI * 2); ctx.arc(c.x + 50, c.y, 30, 0, Math.PI * 2); ctx.fill();
+            });
+
+            ctx.fillStyle = "#444"; ctx.fillRect(0, 460, 800, 40); 
+            document.getElementById('speed-lvl').innerText = (gameSpeed / baseSpeed).toFixed(1);
+
+            nftBox.x -= gameSpeed;
+            if(nftBox.x < -100) { nftBox.x = 900; nftBox.y = 150 + Math.random()*200; }
+            ctx.shadowBlur = 15; ctx.shadowColor = "gold";
+            ctx.fillStyle = "#111"; ctx.strokeStyle = "gold"; ctx.lineWidth = 3;
+            ctx.fillRect(nftBox.x, nftBox.y, nftBox.w, nftBox.h); ctx.strokeRect(nftBox.x, nftBox.y, nftBox.w, nftBox.h);
+            ctx.shadowBlur = 0;
+            ctx.fillStyle = "gold"; ctx.font = "bold 16px Arial"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+            ctx.fillText("GTD", nftBox.x + (nftBox.w / 2), nftBox.y + (nftBox.h / 2));
+
+            balls.forEach((b, bIdx) => {
+                b.vy += 0.5; b.x += b.vx; b.y += b.vy;
+                if(b.y + b.r > 460) { b.y = 460 - b.r; b.vy *= -0.6; b.bounces++; }
+                ctx.fillStyle = "orange"; ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, Math.PI*2); ctx.fill();
+                if(b.x > 850 || b.bounces > 4) balls.splice(bIdx, 1);
+            });
+
+            obstacles.forEach((obs) => {
+                obs.x -= gameSpeed; if(obs.x < -100) obs.x = 1000 + Math.random()*600;
+                ctx.fillStyle = "red"; ctx.beginPath(); ctx.moveTo(obs.x, 460); ctx.lineTo(obs.x+20, 420); ctx.lineTo(obs.x+40, 460); ctx.fill();
+                balls.forEach((b, bIdx) => { if(b.x > obs.x && b.x < obs.x + 40 && b.y > 410) { obs.x = -200; balls.splice(bIdx, 1); score += 5; } });
+                if(player.x < obs.x+30 && player.x+player.w > obs.x && player.y+player.h > 420) endGame();
+            });
+
+            darts.forEach((d) => {
+                d.x -= (gameSpeed + 3);
+                if(d.x < -100) { d.x = 1200 + Math.random()*800; d.y = 100 + Math.random()*250; }
+                ctx.fillStyle = "#333"; ctx.fillRect(d.x, d.y, d.w, d.h);
+                balls.forEach((b, bIdx) => { if(b.x > d.x && b.x < d.x+d.w && b.y > d.y && b.y < d.y+d.h) { d.x = -200; balls.splice(bIdx, 1); score += 15; } });
+                if(player.x < d.x + d.w && player.x + player.w > d.x && player.y < d.y + d.h && player.y + player.h > d.y) endGame();
+            });
+
+            player.vy += gravity; player.y += player.vy;
+            if(player.y + player.h > 460) { player.y = 460 - player.h; player.vy = 0; player.grounded = true; }
+            if(player.x < nftBox.x + nftBox.w && player.x + player.w > nftBox.x && player.y < nftBox.y + nftBox.h && player.y + player.h > nftBox.y) {
+                score += 10; document.getElementById('score').innerText = score; nftBox.x = -200; gameSpeed += 0.4;
+                sfx.collect();
+            }
+
+            drawAvatar(player.x, player.y);
+            requestAnimationFrame(loop);
+        }
+
+        // --- 3. UPDATED ENDGAME WITH AUTO-SAVE ---
+        async function endGame() {
+            if(!gameRunning) return;
+            gameRunning = false;
+            sfx.die();
+            
+            const wallet = document.getElementById('wallet-field').value;
+            const finalScore = score;
+            
+            document.getElementById('final-score').innerText = finalScore;
+            document.getElementById('game-over-screen').classList.remove('hidden');
+
+            try {
+                const { error } = await _supabase
+                    .from('leaderboard')
+                    .insert([{ 
+                        wallet_address: wallet, 
+                        score: finalScore, 
+                        character_type: selectedChar 
+                    }]);
+                
+                if (error) throw error;
+                document.getElementById('sync-status').innerText = "Score saved to Leaderboard!";
+                document.getElementById('sync-status').style.color = "#00ffcc";
+            } catch (err) {
+                console.error("Save error:", err);
+                document.getElementById('sync-status').innerText = "Sync failed. Check connection.";
+                document.getElementById('sync-status').style.color = "#ff4444";
+            }
+        }
+    </script>
+</body>
+</html>
