@@ -3,116 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Hype Sprint - Leaderboard Connected</title>
+    <title>Hype Sprint - Evolving World</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         :root { --sky: #87CEEB; --teal: #00ffcc; --bulls: #ce1141; --gold: #ffd700; }
-        
-        body { 
-            background: #111; 
-            color: #fff; 
-            font-family: sans-serif; 
-            margin: 0; 
-            display: flex; 
-            flex-direction: column; 
-            align-items: center; 
-            justify-content: center; 
-            min-height: 100vh; 
-            overflow: hidden; 
-            touch-action: none; 
-        }
-
-        /* Improved UI responsiveness */
-        #ui { 
-            width: 95%; 
-            max-width: 800px; 
-            display: flex; 
-            justify-content: space-between; 
-            padding: 10px; 
-            font-weight: bold; 
-            font-size: clamp(14px, 4vw, 18px); /* Responsive text */
-        }
-
-        #game-container { 
-            position: relative; 
-            border: 2px solid #fff; 
-            width: 95vw; 
-            /* Maintain 8:5 aspect ratio */
-            aspect-ratio: 800 / 500;
-            max-width: 800px; 
-            max-height: 500px; 
-            overflow: hidden; 
-            background: var(--sky); 
-        }
-
-        canvas { 
-            width: 100%; 
-            height: 100%; 
-            display: block; 
-            image-rendering: pixelated; /* Keeps it crisp on high-DPI screens */
-        }
-
-        .screen { 
-            position: absolute; 
-            top: 0; 
-            left: 0; 
-            width: 100%; 
-            height: 100%; 
-            background: rgba(0,0,0,0.95); 
-            display: flex; 
-            flex-direction: column; 
-            align-items: center; 
-            justify-content: center; 
-            z-index: 30; 
-            text-align: center; 
-            padding: 10px; 
-            box-sizing: border-box; 
-        }
-
+        body { background: #111; color: #fff; font-family: sans-serif; margin: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; overflow: hidden; touch-action: none; }
+        #ui { width: 95%; max-width: 800px; display: flex; justify-content: space-between; padding: 10px; font-weight: bold; font-size: clamp(14px, 4vw, 18px); }
+        #game-container { position: relative; border: 2px solid #fff; width: 95vw; aspect-ratio: 800 / 500; max-width: 800px; max-height: 500px; overflow: hidden; background: var(--sky); transition: background 2s ease; }
+        canvas { width: 100%; height: 100%; display: block; image-rendering: pixelated; }
+        .screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 30; text-align: center; padding: 10px; box-sizing: border-box; }
         .hidden { display: none !important; }
-
-        .char-grid { 
-            display: flex; 
-            gap: 10px; 
-            margin: 15px 0; 
-        }
-
-        .char-card { 
-            border: 2px solid #444; 
-            padding: 8px; 
-            cursor: pointer; 
-            border-radius: 10px; 
-            background: #222; 
-            width: 70px; 
-            font-size: 11px; 
-        }
-
+        .char-grid { display: flex; gap: 10px; margin: 15px 0; }
+        .char-card { border: 2px solid #444; padding: 8px; cursor: pointer; border-radius: 10px; background: #222; width: 70px; font-size: 11px; }
         .char-card.selected { border-color: var(--teal); background: #333; transform: scale(1.05); }
-
-        .wallet-input { 
-            padding: 10px; 
-            width: 85%; 
-            max-width: 250px; 
-            background: #222; 
-            border: 2px solid var(--teal); 
-            color: #fff; 
-            margin: 10px 0; 
-            text-align: center; 
-            border-radius: 8px; 
-            font-size: 16px; /* Prevents iOS zoom on focus */
-        }
-
-        button { 
-            background: var(--teal); 
-            color: #000; 
-            border: none; 
-            padding: 10px 25px; 
-            font-weight: bold; 
-            cursor: pointer; 
-            border-radius: 5px; 
-            text-transform: uppercase; 
-        }
-
+        .wallet-input { padding: 10px; width: 85%; max-width: 250px; background: #222; border: 2px solid var(--teal); color: #fff; margin: 10px 0; text-align: center; border-radius: 8px; font-size: 16px; }
+        button { background: var(--teal); color: #000; border: none; padding: 10px 25px; font-weight: bold; cursor: pointer; border-radius: 5px; text-transform: uppercase; }
         h1 { font-size: clamp(24px, 6vw, 36px); }
     </style>
 </head>
@@ -162,7 +67,6 @@
         const ctx = canvas.getContext('2d');
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         
-        // SFX and Game State
         const sfx = {
             jump: () => playSound(150, 'square', 0.2, 0.1),
             shoot: () => playSound(80, 'sawtooth', 0.1, 0.1),
@@ -193,6 +97,18 @@
         const clouds = [{x: 100, y: 50, s: 0.2}, {x: 400, y: 120, s: 0.35}, {x: 700, y: 80, s: 0.25}];
         const balls = [];
 
+        // UPDATED: Improved Farm Background Assets
+        let farmWindmillAngle = 0;
+        const farmCrops = []; // Will populate on start
+        for(let i=0; i<30; i++) farmCrops.push({x: i*30, w: 8, h: 15});
+        const farmElements = [
+            {type: 'barn', x: 250}, 
+            {type: 'windmill', x: 600},
+            {type: 'barn', x: 1100}
+        ];
+
+        const cityBuildings = [{x: 200, w: 60, h: 200}, {x: 450, w: 80, h: 250}, {x: 750, w: 70, h: 180}];
+
         function selectChar(type, el) {
             selectedChar = type;
             document.querySelectorAll('.char-card').forEach(c => c.classList.remove('selected'));
@@ -200,37 +116,6 @@
             player.jump = (type === 'teal') ? -20 : -16;
             baseSpeed = (type === 'gold') ? 8 : 6;
             gameSpeed = baseSpeed;
-        }
-
-        // Mobile Touch Logic
-        let touchStartY = 0;
-        canvas.addEventListener('touchstart', e => { 
-            touchStartY = e.changedTouches[0].clientY; 
-            e.preventDefault(); 
-        }, {passive: false});
-
-        canvas.addEventListener('touchend', e => {
-            if(!gameRunning) return;
-            let swipeDist = touchStartY - e.changedTouches[0].clientY;
-            if (swipeDist > 20) { 
-                if(player.grounded) { player.vy = player.jump; sfx.jump(); }
-            } else if (swipeDist < -20) { 
-                throwBall(); 
-            } else {
-                // Single tap jump for ease
-                if(player.grounded) { player.vy = player.jump; sfx.jump(); }
-            }
-            e.preventDefault();
-        }, {passive: false});
-
-        window.onkeydown = (e) => {
-            if((e.code === 'Space' || e.code === 'ArrowUp') && player.grounded) { player.vy = player.jump; sfx.jump(); }
-            if((e.code === 'KeyF' || e.code === 'Enter') && gameRunning) throwBall();
-        };
-
-        function throwBall() {
-            balls.push({ x: player.x + player.w, y: player.y + 30, r: 10, vx: 12, vy: -4, bounces: 0 });
-            sfx.shoot();
         }
 
         function checkAndStart() {
@@ -247,6 +132,57 @@
                     if(timeLeft <= 0) endGame(); 
                 } 
             }, 1000);
+        }
+
+        // NEW: Advanced Procedural Barn Drawing
+        function drawBarn(x, size) {
+            const h = 80; const w = 120;
+            // Base Red Body
+            ctx.fillStyle = "#a52a2a"; ctx.fillRect(x, 460-h, w, h);
+            // Silo
+            ctx.fillStyle = "#888"; ctx.fillRect(x+w, 460-h*1.2, 30, h*1.2);
+            ctx.beginPath(); ctx.arc(x+w+15, 460-h*1.2, 15, Math.PI, 0); ctx.fill();
+            // Complex Roof (Gambrel)
+            ctx.fillStyle = "#fff"; 
+            ctx.beginPath(); ctx.moveTo(x-10, 460-h); ctx.lineTo(x+w/2, 460-h-40); ctx.lineTo(x+w+10, 460-h); 
+            ctx.lineTo(x+w/2, 460-h-15); ctx.closePath(); ctx.fill(); 
+            // Doors
+            ctx.fillStyle = "#f5f5dc"; ctx.fillRect(x+w/2-20, 460-40, 40, 40);
+            ctx.fillStyle = "#a52a2a"; ctx.lineWidth = 1;
+            ctx.strokeRect(x+w/2-20, 460-40, 20, 40); ctx.strokeRect(x+w/2, 460-40, 20, 40);
+            ctx.beginPath(); ctx.moveTo(x+w/2-20, 460-40); ctx.lineTo(x+w/2+20, 460); ctx.moveTo(x+w/2+20, 460-40); ctx.lineTo(x+w/2-20, 460); ctx.stroke();
+        }
+
+        // NEW: Animated Windmill
+        function drawWindmill(x) {
+            const h = 140; const w = 50;
+            // Tower
+            ctx.strokeStyle = "#8B4513"; ctx.lineWidth = 4;
+            ctx.beginPath(); ctx.moveTo(x, 460); ctx.lineTo(x+w/2, 460-h); ctx.lineTo(x+w, 460); ctx.moveTo(x+w/2-5, 460-h); ctx.lineTo(x+w/2+5, 460-h); ctx.stroke();
+            ctx.fillStyle="#8B4513"; ctx.fillRect(x+w/2-5, 460-h, 10, h);
+            // Blades
+            ctx.save();
+            ctx.translate(x+w/2, 460-h);
+            farmWindmillAngle += (gameSpeed * 0.01);
+            ctx.rotate(farmWindmillAngle);
+            ctx.fillStyle = "rgba(200,200,200,0.8)"; ctx.strokeStyle="#fff"; ctx.lineWidth = 1;
+            for(let i=0; i<4; i++) {
+                ctx.rotate(Math.PI/2);
+                ctx.fillRect(0, -5, 60, 10);
+                ctx.strokeRect(0, -5, 60, 10);
+            }
+            ctx.restore();
+        }
+
+        function drawBuilding(x, w, h) {
+            ctx.fillStyle = "#333"; ctx.fillRect(x, 460 - h, w, h); // Structure
+            ctx.fillStyle = "rgba(255,255,100,0.5)"; 
+            for(let i=10; i<w-10; i+=20) for(let j=10; j<h-20; j+=30) ctx.fillRect(x+i, 460-h+j, 10, 15); // Windows
+        }
+
+        function throwBall() {
+            balls.push({ x: player.x + player.w, y: player.y + 30, r: 10, vx: 12, vy: -4, bounces: 0 });
+            sfx.shoot();
         }
 
         function drawAvatar(x, y) {
@@ -270,15 +206,46 @@
         function loop() {
             if(!gameRunning) return;
             ctx.clearRect(0, 0, 800, 500);
-            
-            clouds.forEach(c => {
-                c.x -= (c.s * gameSpeed * 0.5);
-                if(c.x < -150) c.x = 850;
-                ctx.fillStyle = "rgba(255, 255, 255, 0.8)";
-                ctx.beginPath(); ctx.arc(c.x, c.y, 30, 0, Math.PI * 2); ctx.arc(c.x + 25, c.y - 10, 35, 0, Math.PI * 2); ctx.arc(c.x + 50, c.y, 30, 0, Math.PI * 2); ctx.fill();
-            });
 
-            ctx.fillStyle = "#444"; ctx.fillRect(0, 460, 800, 40); 
+            // BACKGROUND LOGIC
+            if (score < 50) {
+                document.getElementById('game-container').style.background = "#87CEEB"; // Day
+                clouds.forEach(c => {
+                    c.x -= (c.s * gameSpeed * 0.5);
+                    if(c.x < -150) c.x = 850;
+                    ctx.fillStyle = "rgba(255, 255, 255, 0.8)";
+                    ctx.beginPath(); ctx.arc(c.x, c.y, 30, 0, Math.PI * 2); ctx.arc(c.x + 25, c.y - 10, 35, 0, Math.PI * 2); ctx.arc(c.x + 50, c.y, 30, 0, Math.PI * 2); ctx.fill();
+                });
+            } else if (score >= 50 && score < 100) {
+                // UPDATED: Sunset sky + Grass ground + Improved Farm
+                document.getElementById('game-container').style.background = "#ff7f50"; // Sunset Sky
+                ctx.fillStyle="#228B22"; ctx.fillRect(0, 430, 800, 30); // Darker grass layer
+                
+                // Draw and Scroll Crops
+                ctx.fillStyle = "#ffd700"; // Golden wheat color
+                farmCrops.forEach(crop => {
+                    crop.x -= (gameSpeed * 0.5); // Crops move with parallax
+                    if(crop.x < -30) crop.x = 830;
+                    ctx.fillRect(crop.x, 460 - crop.h, crop.w, crop.h);
+                });
+
+                // Draw and Scroll Large Structures (Barns/Windmill)
+                farmElements.forEach(el => {
+                    el.x -= (gameSpeed * 0.3); // Slow movement for distance
+                    if(el.x < -200) el.x = 1000;
+                    if(el.type === 'barn') drawBarn(el.x);
+                    if(el.type === 'windmill') drawWindmill(el.x);
+                });
+            } else {
+                document.getElementById('game-container').style.background = "#2c3e50"; // City Night
+                cityBuildings.forEach(b => {
+                    b.x -= (gameSpeed * 0.4);
+                    if(b.x < -100) b.x = 900;
+                    drawBuilding(b.x, b.w, b.h);
+                });
+            }
+
+            ctx.fillStyle = "#444"; ctx.fillRect(0, 460, 800, 40); // Ground
             document.getElementById('speed-lvl').innerText = (gameSpeed / baseSpeed).toFixed(1);
 
             nftBox.x -= gameSpeed;
@@ -343,6 +310,22 @@
                 document.getElementById('sync-status').style.color = "#ff4444";
             }
         }
+
+        // Mobile Touch Controls
+        let touchStartY = 0;
+        canvas.addEventListener('touchstart', e => { touchStartY = e.changedTouches[0].clientY; e.preventDefault(); }, {passive: false});
+        canvas.addEventListener('touchend', e => {
+            if(!gameRunning) return;
+            let swipeDist = touchStartY - e.changedTouches[0].clientY;
+            if (swipeDist > 20) { if(player.grounded) { player.vy = player.jump; sfx.jump(); } }
+            else if (swipeDist < -20) { throwBall(); }
+            else { if(player.grounded) { player.vy = player.jump; sfx.jump(); } }
+            e.preventDefault();
+        }, {passive: false});
+        window.onkeydown = (e) => {
+            if((e.code === 'Space' || e.code === 'ArrowUp') && player.grounded) { player.vy = player.jump; sfx.jump(); }
+            if((e.code === 'KeyF' || e.code === 'Enter') && gameRunning) throwBall();
+        };
     </script>
 </body>
 </html>
