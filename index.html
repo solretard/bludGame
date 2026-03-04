@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Hype Sprint - Evolving World</title>
+    <title>Hype Sprint - Custom Avatar & Unique Leaderboard</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         :root { --sky: #87CEEB; --teal: #00ffcc; --bulls: #ce1141; --gold: #ffd700; }
@@ -11,14 +11,20 @@
         #ui { width: 95%; max-width: 800px; display: flex; justify-content: space-between; padding: 10px; font-weight: bold; font-size: clamp(14px, 4vw, 18px); }
         #game-container { position: relative; border: 2px solid #fff; width: 95vw; aspect-ratio: 800 / 500; max-width: 800px; max-height: 500px; overflow: hidden; background: var(--sky); transition: background 2s ease; }
         canvas { width: 100%; height: 100%; display: block; image-rendering: pixelated; }
-        .screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 30; text-align: center; padding: 10px; box-sizing: border-box; }
+        .screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); display: flex; flex-direction: column; align-items: center; justify-content: flex-start; z-index: 30; text-align: center; padding: 20px; box-sizing: border-box; overflow-y: auto; }
         .hidden { display: none !important; }
-        .char-grid { display: flex; gap: 10px; margin: 15px 0; }
+        .leaderboard-container { width: 100%; max-width: 400px; margin-top: 15px; background: #222; border-radius: 8px; border: 1px solid #444; }
+        .leaderboard-header { padding: 10px; background: #333; color: var(--teal); font-weight: bold; border-bottom: 1px solid #444; display: flex; justify-content: space-between; font-size: 14px; }
+        .leaderboard-list { max-height: 150px; overflow-y: auto; list-style: none; padding: 0; margin: 0; font-size: 13px; }
+        .leaderboard-item { display: flex; justify-content: space-between; padding: 8px 10px; border-bottom: 1px solid #333; }
+        .rank { color: var(--gold); font-weight: bold; width: 25px; }
+        .addr { flex-grow: 1; text-align: left; margin-left: 10px; opacity: 0.8; }
+        .pts { font-weight: bold; color: var(--teal); }
+        .char-grid { display: flex; gap: 10px; margin: 10px 0; }
         .char-card { border: 2px solid #444; padding: 8px; cursor: pointer; border-radius: 10px; background: #222; width: 70px; font-size: 11px; }
         .char-card.selected { border-color: var(--teal); background: #333; transform: scale(1.05); }
         .wallet-input { padding: 10px; width: 85%; max-width: 250px; background: #222; border: 2px solid var(--teal); color: #fff; margin: 10px 0; text-align: center; border-radius: 8px; font-size: 16px; }
-        button { background: var(--teal); color: #000; border: none; padding: 10px 25px; font-weight: bold; cursor: pointer; border-radius: 5px; text-transform: uppercase; }
-        h1 { font-size: clamp(24px, 6vw, 36px); }
+        button { background: var(--teal); color: #000; border: none; padding: 10px 25px; font-weight: bold; cursor: pointer; border-radius: 5px; text-transform: uppercase; margin-top: 10px; }
     </style>
 </head>
 <body>
@@ -33,26 +39,27 @@
         <div id="start-screen" class="screen">
             <h1 style="color:var(--teal); margin: 0;">BLUD SPRINT</h1>
             <input type="text" id="wallet-field" class="wallet-input" placeholder="Enter Wallet Address">
-            <p style="margin: 5px 0; font-size: 14px;">CHOOSE BLUD</p>
             <div class="char-grid">
-                <div class="char-card selected" onclick="selectChar('bulls', this)">
-                    <div style="color:var(--bulls)">BULLS</div>
-                </div>
-                <div class="char-card" onclick="selectChar('teal', this)">
-                    <div style="color:var(--teal)">TITAN</div>
-                </div>
-                <div class="char-card" onclick="selectChar('gold', this)">
-                    <div style="color:var(--gold)">GHOST</div>
-                </div>
+                <div class="char-card selected" onclick="selectChar('bulls', this)"><div style="color:var(--bulls)">BULLS</div></div>
+                <div class="char-card" onclick="selectChar('teal', this)"><div style="color:var(--teal)">TITAN</div></div>
+                <div class="char-card" onclick="selectChar('gold', this)"><div style="color:var(--gold)">GHOST</div></div>
             </div>
             <button onclick="checkAndStart()">Enter Game</button>
+            <div class="leaderboard-container">
+                <div class="leaderboard-header"><span>RANK</span><span>PLAYER</span><span>SCORE</span></div>
+                <ul id="leaderboard-list-start" class="leaderboard-list"><li>Loading top 20...</li></ul>
+            </div>
         </div>
 
         <div id="game-over-screen" class="screen hidden">
             <h1 style="color:#ff4444;">GAME OVER</h1>
             <h2 style="color: var(--gold)">SCORE: <span id="final-score">0</span></h2>
-            <p id="sync-status" style="font-size: 12px; color: #888;">Syncing score...</p>
+            <p id="sync-status" style="font-size: 12px; color: #888;">Checking high score...</p>
             <button onclick="location.reload()">Try Again</button>
+            <div class="leaderboard-container" style="margin-top: 20px;">
+                <div class="leaderboard-header"><span>RANK</span><span>PLAYER</span><span>SCORE</span></div>
+                <ul id="leaderboard-list-end" class="leaderboard-list"></ul>
+            </div>
         </div>
 
         <canvas id="gameCanvas" width="800" height="500"></canvas>
@@ -97,17 +104,30 @@
         const clouds = [{x: 100, y: 50, s: 0.2}, {x: 400, y: 120, s: 0.35}, {x: 700, y: 80, s: 0.25}];
         const balls = [];
 
-        // UPDATED: Improved Farm Background Assets
+        // Background Assets
         let farmWindmillAngle = 0;
-        const farmCrops = []; // Will populate on start
+        const farmCrops = []; 
         for(let i=0; i<30; i++) farmCrops.push({x: i*30, w: 8, h: 15});
-        const farmElements = [
-            {type: 'barn', x: 250}, 
-            {type: 'windmill', x: 600},
-            {type: 'barn', x: 1100}
-        ];
-
+        const farmElements = [{type: 'barn', x: 250}, {type: 'windmill', x: 600}, {type: 'barn', x: 1100}];
         const cityBuildings = [{x: 200, w: 60, h: 200}, {x: 450, w: 80, h: 250}, {x: 750, w: 70, h: 180}];
+
+        async function fetchLeaderboard() {
+            try {
+                const { data, error } = await _supabase.from('leaderboard').select('wallet_address, score').order('score', { ascending: false }).limit(20);
+                if (error) throw error;
+                const listHTML = data.map((entry, index) => `
+                    <li class="leaderboard-item">
+                        <span class="rank">#${index + 1}</span>
+                        <span class="addr">${entry.wallet_address.substring(0, 6)}...${entry.wallet_address.slice(-4)}</span>
+                        <span class="pts">${entry.score}</span>
+                    </li>
+                `).join('');
+                document.getElementById('leaderboard-list-start').innerHTML = listHTML;
+                document.getElementById('leaderboard-list-end').innerHTML = listHTML;
+            } catch (err) { console.error("Leaderboard fail:", err); }
+        }
+
+        fetchLeaderboard();
 
         function selectChar(type, el) {
             selectedChar = type;
@@ -124,208 +144,144 @@
             document.getElementById('start-screen').classList.add('hidden');
             gameRunning = true;
             loop();
-            setInterval(() => { 
-                if(gameRunning) { 
-                    timeLeft--; 
-                    let mins = Math.floor(timeLeft / 60), secs = timeLeft % 60;
-                    document.getElementById('timer').innerText = `${mins}:${secs < 10 ? '0' : ''}${secs}`;
-                    if(timeLeft <= 0) endGame(); 
-                } 
-            }, 1000);
+            setInterval(() => { if(gameRunning) { timeLeft--; let mins = Math.floor(timeLeft / 60), secs = timeLeft % 60; document.getElementById('timer').innerText = `${mins}:${secs < 10 ? '0' : ''}${secs}`; if(timeLeft <= 0) endGame(); } }, 1000);
         }
 
-        // NEW: Advanced Procedural Barn Drawing
-        function drawBarn(x, size) {
+        function drawBarn(x) {
             const h = 80; const w = 120;
-            // Base Red Body
             ctx.fillStyle = "#a52a2a"; ctx.fillRect(x, 460-h, w, h);
-            // Silo
             ctx.fillStyle = "#888"; ctx.fillRect(x+w, 460-h*1.2, 30, h*1.2);
             ctx.beginPath(); ctx.arc(x+w+15, 460-h*1.2, 15, Math.PI, 0); ctx.fill();
-            // Complex Roof (Gambrel)
-            ctx.fillStyle = "#fff"; 
-            ctx.beginPath(); ctx.moveTo(x-10, 460-h); ctx.lineTo(x+w/2, 460-h-40); ctx.lineTo(x+w+10, 460-h); 
-            ctx.lineTo(x+w/2, 460-h-15); ctx.closePath(); ctx.fill(); 
-            // Doors
+            ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.moveTo(x-10, 460-h); ctx.lineTo(x+w/2, 460-h-40); ctx.lineTo(x+w+10, 460-h); ctx.lineTo(x+w/2, 460-h-15); ctx.closePath(); ctx.fill(); 
             ctx.fillStyle = "#f5f5dc"; ctx.fillRect(x+w/2-20, 460-40, 40, 40);
-            ctx.fillStyle = "#a52a2a"; ctx.lineWidth = 1;
-            ctx.strokeRect(x+w/2-20, 460-40, 20, 40); ctx.strokeRect(x+w/2, 460-40, 20, 40);
-            ctx.beginPath(); ctx.moveTo(x+w/2-20, 460-40); ctx.lineTo(x+w/2+20, 460); ctx.moveTo(x+w/2+20, 460-40); ctx.lineTo(x+w/2-20, 460); ctx.stroke();
         }
 
-        // NEW: Animated Windmill
         function drawWindmill(x) {
             const h = 140; const w = 50;
-            // Tower
             ctx.strokeStyle = "#8B4513"; ctx.lineWidth = 4;
-            ctx.beginPath(); ctx.moveTo(x, 460); ctx.lineTo(x+w/2, 460-h); ctx.lineTo(x+w, 460); ctx.moveTo(x+w/2-5, 460-h); ctx.lineTo(x+w/2+5, 460-h); ctx.stroke();
-            ctx.fillStyle="#8B4513"; ctx.fillRect(x+w/2-5, 460-h, 10, h);
-            // Blades
-            ctx.save();
-            ctx.translate(x+w/2, 460-h);
-            farmWindmillAngle += (gameSpeed * 0.01);
-            ctx.rotate(farmWindmillAngle);
-            ctx.fillStyle = "rgba(200,200,200,0.8)"; ctx.strokeStyle="#fff"; ctx.lineWidth = 1;
-            for(let i=0; i<4; i++) {
-                ctx.rotate(Math.PI/2);
-                ctx.fillRect(0, -5, 60, 10);
-                ctx.strokeRect(0, -5, 60, 10);
-            }
-            ctx.restore();
+            ctx.beginPath(); ctx.moveTo(x, 460); ctx.lineTo(x+w/2, 460-h); ctx.lineTo(x+w, 460); ctx.stroke();
+            ctx.save(); ctx.translate(x+w/2, 460-h); farmWindmillAngle += (gameSpeed * 0.01); ctx.rotate(farmWindmillAngle);
+            ctx.fillStyle = "rgba(200,200,200,0.8)"; for(let i=0; i<4; i++) { ctx.rotate(Math.PI/2); ctx.fillRect(0, -5, 60, 10); } ctx.restore();
         }
 
         function drawBuilding(x, w, h) {
-            ctx.fillStyle = "#333"; ctx.fillRect(x, 460 - h, w, h); // Structure
-            ctx.fillStyle = "rgba(255,255,100,0.5)"; 
-            for(let i=10; i<w-10; i+=20) for(let j=10; j<h-20; j+=30) ctx.fillRect(x+i, 460-h+j, 10, 15); // Windows
+            ctx.fillStyle = "#333"; ctx.fillRect(x, 460 - h, w, h);
+            ctx.fillStyle = "rgba(255,255,100,0.5)"; for(let i=10; i<w-10; i+=20) for(let j=10; j<h-20; j+=30) ctx.fillRect(x+i, 460-h+j, 10, 15);
         }
 
-        function throwBall() {
-            balls.push({ x: player.x + player.w, y: player.y + 30, r: 10, vx: 12, vy: -4, bounces: 0 });
-            sfx.shoot();
-        }
+        function throwBall() { balls.push({ x: player.x + player.w, y: player.y + 30, r: 10, vx: 12, vy: -4, bounces: 0 }); sfx.shoot(); }
 
+        // --- NEW IMAGE-INSPIRED AVATAR ---
         function drawAvatar(x, y) {
             player.anim += (gameSpeed * 0.02);
-            let legSwing = Math.sin(player.anim) * 12, armSwing = Math.cos(player.anim) * 12;
+            let legSwing = Math.sin(player.anim) * 12;
+            let armSwing = Math.cos(player.anim) * 12;
             let mainColor = selectedChar === 'bulls' ? '#ce1141' : (selectedChar === 'teal' ? '#00ffcc' : '#ffd700');
-            ctx.strokeStyle = "#ffdbac"; ctx.lineWidth = 6;
-            ctx.beginPath(); ctx.moveTo(x + 15, y + 70); ctx.lineTo(x + 10 - legSwing, y + 90); ctx.stroke(); 
-            ctx.beginPath(); ctx.moveTo(x + 35, y + 70); ctx.lineTo(x + 40 + legSwing, y + 90); ctx.stroke(); 
-            ctx.beginPath(); ctx.moveTo(x + 5, y + 50); ctx.lineTo(x - 10 - armSwing, y + 65); ctx.stroke(); 
-            ctx.beginPath(); ctx.moveTo(x + 45, y + 50); ctx.lineTo(x + 60 + armSwing, y + 65); ctx.stroke(); 
-            ctx.fillStyle = mainColor; ctx.fillRect(x + 5, y + 40, 40, 35);
-            ctx.fillStyle = "#fff"; ctx.font = "bold 12px Arial"; ctx.textAlign="center"; ctx.fillText("00", x + 25, y + 65);
-            ctx.fillStyle = "#00ffcc";
-            for(let i=0; i<6; i++) { ctx.beginPath(); ctx.moveTo(x+(i*9), y+15); ctx.lineTo(x+(i*9)+4, y-8); ctx.lineTo(x+(i*9)+8, y+15); ctx.fill(); }
-            ctx.fillStyle = "#222"; ctx.fillRect(x + 5, y + 10, 40, 12); 
-            ctx.fillStyle = "#ffdbac"; ctx.fillRect(x + 8, y + 22, 34, 18); 
-            ctx.strokeStyle = "#ffd700"; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x + 25, y + 42, 6, 0, Math.PI); ctx.stroke();
+            let skinTone = "#ffdbac";
+
+            // Legs
+            ctx.fillStyle = skinTone;
+            ctx.fillRect(x + 18 - legSwing, y + 70, 6, 20); // Back leg
+            ctx.fillRect(x + 26 + legSwing, y + 70, 6, 20); // Front leg
+
+            // Body (Jersey)
+            ctx.fillStyle = mainColor;
+            ctx.fillRect(x + 10, y + 40, 30, 30);
+            
+            // Gold Chain
+            ctx.strokeStyle = "#ffd700"; ctx.lineWidth = 2;
+            ctx.beginPath(); ctx.arc(x + 25, y + 42, 6, 0.2, Math.PI - 0.2); ctx.stroke();
+
+            // Arms
+            ctx.fillStyle = skinTone;
+            ctx.fillRect(x - 5 - armSwing, y + 50, 15, 6); // Left arm
+            ctx.fillRect(x + 40 + armSwing, y + 50, 15, 6); // Right arm
+
+            // Jersey Number
+            ctx.fillStyle = "#fff"; ctx.font = "bold 10px Arial"; ctx.textAlign="center"; 
+            ctx.fillText("00", x + 25, y + 60);
+
+            // Head
+            ctx.fillStyle = skinTone;
+            ctx.fillRect(x + 15, y + 15, 20, 25);
+            
+            // Hair/Cap
+            ctx.fillStyle = "#111";
+            ctx.fillRect(x + 15, y + 15, 20, 8);
+            
+            // Cyan Spike Hair (As per image)
+            ctx.fillStyle = "#00ffff";
+            for(let i=0; i<5; i++) {
+                ctx.beginPath();
+                ctx.moveTo(x + 16 + (i*4), y + 15);
+                ctx.lineTo(x + 18 + (i*4), y + 5);
+                ctx.lineTo(x + 20 + (i*4), y + 15);
+                ctx.fill();
+            }
         }
 
         function loop() {
             if(!gameRunning) return;
             ctx.clearRect(0, 0, 800, 500);
-
-            // BACKGROUND LOGIC
             if (score < 50) {
-                document.getElementById('game-container').style.background = "#87CEEB"; // Day
-                clouds.forEach(c => {
-                    c.x -= (c.s * gameSpeed * 0.5);
-                    if(c.x < -150) c.x = 850;
-                    ctx.fillStyle = "rgba(255, 255, 255, 0.8)";
-                    ctx.beginPath(); ctx.arc(c.x, c.y, 30, 0, Math.PI * 2); ctx.arc(c.x + 25, c.y - 10, 35, 0, Math.PI * 2); ctx.arc(c.x + 50, c.y, 30, 0, Math.PI * 2); ctx.fill();
-                });
+                document.getElementById('game-container').style.background = "#87CEEB";
+                clouds.forEach(c => { c.x -= (c.s * gameSpeed * 0.5); if(c.x < -150) c.x = 850; ctx.fillStyle = "rgba(255, 255, 255, 0.8)"; ctx.beginPath(); ctx.arc(c.x, c.y, 30, 0, Math.PI * 2); ctx.arc(c.x + 25, c.y - 10, 35, 0, Math.PI * 2); ctx.arc(c.x + 50, c.y, 30, 0, Math.PI * 2); ctx.fill(); });
             } else if (score >= 50 && score < 100) {
-                // UPDATED: Sunset sky + Grass ground + Improved Farm
-                document.getElementById('game-container').style.background = "#ff7f50"; // Sunset Sky
-                ctx.fillStyle="#228B22"; ctx.fillRect(0, 430, 800, 30); // Darker grass layer
-                
-                // Draw and Scroll Crops
-                ctx.fillStyle = "#ffd700"; // Golden wheat color
-                farmCrops.forEach(crop => {
-                    crop.x -= (gameSpeed * 0.5); // Crops move with parallax
-                    if(crop.x < -30) crop.x = 830;
-                    ctx.fillRect(crop.x, 460 - crop.h, crop.w, crop.h);
-                });
-
-                // Draw and Scroll Large Structures (Barns/Windmill)
-                farmElements.forEach(el => {
-                    el.x -= (gameSpeed * 0.3); // Slow movement for distance
-                    if(el.x < -200) el.x = 1000;
-                    if(el.type === 'barn') drawBarn(el.x);
-                    if(el.type === 'windmill') drawWindmill(el.x);
-                });
+                document.getElementById('game-container').style.background = "#ff7f50";
+                ctx.fillStyle="#228B22"; ctx.fillRect(0, 430, 800, 30);
+                farmCrops.forEach(crop => { crop.x -= (gameSpeed * 0.5); if(crop.x < -30) crop.x = 830; ctx.fillStyle="#ffd700"; ctx.fillRect(crop.x, 460 - crop.h, crop.w, crop.h); });
+                farmElements.forEach(el => { el.x -= (gameSpeed * 0.3); if(el.x < -200) el.x = 1000; if(el.type === 'barn') drawBarn(el.x); if(el.type === 'windmill') drawWindmill(el.x); });
             } else {
-                document.getElementById('game-container').style.background = "#2c3e50"; // City Night
-                cityBuildings.forEach(b => {
-                    b.x -= (gameSpeed * 0.4);
-                    if(b.x < -100) b.x = 900;
-                    drawBuilding(b.x, b.w, b.h);
-                });
+                document.getElementById('game-container').style.background = "#2c3e50";
+                cityBuildings.forEach(b => { b.x -= (gameSpeed * 0.4); if(b.x < -100) b.x = 900; drawBuilding(b.x, b.w, b.h); });
             }
-
-            ctx.fillStyle = "#444"; ctx.fillRect(0, 460, 800, 40); // Ground
+            ctx.fillStyle = "#444"; ctx.fillRect(0, 460, 800, 40);
             document.getElementById('speed-lvl').innerText = (gameSpeed / baseSpeed).toFixed(1);
-
-            nftBox.x -= gameSpeed;
-            if(nftBox.x < -100) { nftBox.x = 900; nftBox.y = 150 + Math.random()*200; }
-            ctx.shadowBlur = 15; ctx.shadowColor = "gold";
-            ctx.fillStyle = "#111"; ctx.strokeStyle = "gold"; ctx.lineWidth = 3;
-            ctx.fillRect(nftBox.x, nftBox.y, nftBox.w, nftBox.h); ctx.strokeRect(nftBox.x, nftBox.y, nftBox.w, nftBox.h);
-            ctx.shadowBlur = 0;
-            ctx.fillStyle = "gold"; ctx.font = "bold 16px Arial"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
-            ctx.fillText("GTD", nftBox.x + (nftBox.w / 2), nftBox.y + (nftBox.h / 2));
-
-            balls.forEach((b, bIdx) => {
-                b.vy += 0.5; b.x += b.vx; b.y += b.vy;
-                if(b.y + b.r > 460) { b.y = 460 - b.r; b.vy *= -0.6; b.bounces++; }
-                ctx.fillStyle = "orange"; ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, Math.PI*2); ctx.fill();
-                if(b.x > 850 || b.bounces > 4) balls.splice(bIdx, 1);
-            });
-
-            obstacles.forEach((obs) => {
-                obs.x -= gameSpeed; if(obs.x < -100) obs.x = 1000 + Math.random()*600;
-                ctx.fillStyle = "red"; ctx.beginPath(); ctx.moveTo(obs.x, 460); ctx.lineTo(obs.x+20, 420); ctx.lineTo(obs.x+40, 460); ctx.fill();
-                balls.forEach((b, bIdx) => { if(b.x > obs.x && b.x < obs.x + 40 && b.y > 410) { obs.x = -200; balls.splice(bIdx, 1); score += 5; } });
-                if(player.x < obs.x+30 && player.x+player.w > obs.x && player.y+player.h > 420) endGame();
-            });
-
-            darts.forEach((d) => {
-                d.x -= (gameSpeed + 3);
-                if(d.x < -100) { d.x = 1200 + Math.random()*800; d.y = 100 + Math.random()*250; }
-                ctx.fillStyle = "#333"; ctx.fillRect(d.x, d.y, d.w, d.h);
-                balls.forEach((b, bIdx) => { if(b.x > d.x && b.x < d.x+d.w && b.y > d.y && b.y < d.y+d.h) { d.x = -200; balls.splice(bIdx, 1); score += 15; } });
-                if(player.x < d.x + d.w && player.x + player.w > d.x && player.y < d.y + d.h && player.y + player.h > d.y) endGame();
-            });
-
-            player.vy += gravity; player.y += player.vy;
-            if(player.y + player.h > 460) { player.y = 460 - player.h; player.vy = 0; player.grounded = true; }
-            if(player.x < nftBox.x + nftBox.w && player.x + player.w > nftBox.x && player.y < nftBox.y + nftBox.h && player.y + player.h > nftBox.y) {
-                score += 10; document.getElementById('score').innerText = score; nftBox.x = -200; gameSpeed += 0.4;
-                sfx.collect();
-            }
-
-            drawAvatar(player.x, player.y);
-            requestAnimationFrame(loop);
+            nftBox.x -= gameSpeed; if(nftBox.x < -100) { nftBox.x = 900; nftBox.y = 150 + Math.random()*200; }
+            ctx.fillStyle = "#111"; ctx.strokeStyle = "gold"; ctx.lineWidth = 3; ctx.fillRect(nftBox.x, nftBox.y, nftBox.w, nftBox.h); ctx.strokeRect(nftBox.x, nftBox.y, nftBox.w, nftBox.h);
+            ctx.fillStyle = "gold"; ctx.font = "bold 16px Arial"; ctx.textAlign = "center"; ctx.fillText("GTD", nftBox.x + 25, nftBox.y + 35);
+            balls.forEach((b, bIdx) => { b.vy += 0.5; b.x += b.vx; b.y += b.vy; if(b.y + b.r > 460) { b.y = 460 - b.r; b.vy *= -0.6; b.bounces++; } ctx.fillStyle = "orange"; ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, Math.PI*2); ctx.fill(); if(b.x > 850 || b.bounces > 4) balls.splice(bIdx, 1); });
+            obstacles.forEach((obs) => { obs.x -= gameSpeed; if(obs.x < -100) obs.x = 1000 + Math.random()*600; ctx.fillStyle = "red"; ctx.beginPath(); ctx.moveTo(obs.x, 460); ctx.lineTo(obs.x+20, 420); ctx.lineTo(obs.x+40, 460); ctx.fill(); balls.forEach((b, bIdx) => { if(b.x > obs.x && b.x < obs.x + 40 && b.y > 410) { obs.x = -200; balls.splice(bIdx, 1); score += 5; } }); if(player.x < obs.x+30 && player.x+player.w > obs.x && player.y+player.h > 420) endGame(); });
+            darts.forEach((d) => { d.x -= (gameSpeed + 3); if(d.x < -100) { d.x = 1200 + Math.random()*800; d.y = 100 + Math.random()*250; } ctx.fillStyle = "#333"; ctx.fillRect(d.x, d.y, d.w, d.h); balls.forEach((b, bIdx) => { if(b.x > d.x && b.x < d.x+d.w && b.y > d.y && b.y < d.y+d.h) { d.x = -200; balls.splice(bIdx, 1); score += 15; } }); if(player.x < d.x + d.w && player.x + player.w > d.x && player.y < d.y + d.h && player.y + player.h > d.y) endGame(); });
+            player.vy += gravity; player.y += player.vy; if(player.y + player.h > 460) { player.y = 460 - player.h; player.vy = 0; player.grounded = true; }
+            if(player.x < nftBox.x + nftBox.w && player.x + player.w > nftBox.x && player.y < nftBox.y + nftBox.h && player.y + player.h > nftBox.y) { score += 10; document.getElementById('score').innerText = score; nftBox.x = -200; gameSpeed += 0.4; sfx.collect(); }
+            drawAvatar(player.x, player.y); requestAnimationFrame(loop);
         }
 
         async function endGame() {
-            if(!gameRunning) return;
-            gameRunning = false;
-            sfx.die();
+            if(!gameRunning) return; gameRunning = false; sfx.die();
             const wallet = document.getElementById('wallet-field').value;
-            const finalScore = score;
-            document.getElementById('final-score').innerText = finalScore;
+            const finalScore = score; document.getElementById('final-score').innerText = finalScore;
             document.getElementById('game-over-screen').classList.remove('hidden');
+            
             try {
-                const { error } = await _supabase.from('leaderboard').insert([{ 
-                    wallet_address: wallet, score: finalScore, character_type: selectedChar 
-                }]);
-                if (error) throw error;
-                document.getElementById('sync-status').innerText = "Score saved!";
-                document.getElementById('sync-status').style.color = "#00ffcc";
-            } catch (err) {
-                document.getElementById('sync-status').innerText = "Sync failed.";
-                document.getElementById('sync-status').style.color = "#ff4444";
+                // Check if user exists and has a higher score
+                const { data: existing } = await _supabase.from('leaderboard').select('score').eq('wallet_address', wallet).single();
+                
+                if (!existing || finalScore > existing.score) {
+                    const { error } = await _supabase.from('leaderboard').upsert({ 
+                        wallet_address: wallet, 
+                        score: finalScore, 
+                        character_type: selectedChar 
+                    }, { onConflict: 'wallet_address' });
+                    
+                    if (error) throw error;
+                    document.getElementById('sync-status').innerText = existing ? "New Personal Best!" : "Score saved!";
+                    document.getElementById('sync-status').style.color = "#00ffcc";
+                } else {
+                    document.getElementById('sync-status').innerText = "Try harder for a high score!";
+                }
+                await fetchLeaderboard();
+            } catch (err) { 
+                document.getElementById('sync-status').innerText = "Sync failed."; 
+                document.getElementById('sync-status').style.color = "#ff4444"; 
             }
         }
 
-        // Mobile Touch Controls
         let touchStartY = 0;
         canvas.addEventListener('touchstart', e => { touchStartY = e.changedTouches[0].clientY; e.preventDefault(); }, {passive: false});
-        canvas.addEventListener('touchend', e => {
-            if(!gameRunning) return;
-            let swipeDist = touchStartY - e.changedTouches[0].clientY;
-            if (swipeDist > 20) { if(player.grounded) { player.vy = player.jump; sfx.jump(); } }
-            else if (swipeDist < -20) { throwBall(); }
-            else { if(player.grounded) { player.vy = player.jump; sfx.jump(); } }
-            e.preventDefault();
-        }, {passive: false});
-        window.onkeydown = (e) => {
-            if((e.code === 'Space' || e.code === 'ArrowUp') && player.grounded) { player.vy = player.jump; sfx.jump(); }
-            if((e.code === 'KeyF' || e.code === 'Enter') && gameRunning) throwBall();
-        };
+        canvas.addEventListener('touchend', e => { if(!gameRunning) return; let swipeDist = touchStartY - e.changedTouches[0].clientY; if (swipeDist > 20) { if(player.grounded) { player.vy = player.jump; sfx.jump(); } } else if (swipeDist < -20) { throwBall(); } else { if(player.grounded) { player.vy = player.jump; sfx.jump(); } } e.preventDefault(); }, {passive: false});
+        window.onkeydown = (e) => { if((e.code === 'Space' || e.code === 'ArrowUp') && player.grounded) { player.vy = player.jump; sfx.jump(); } if((e.code === 'KeyF' || e.code === 'Enter') && gameRunning) throwBall(); };
     </script>
 </body>
 </html>
