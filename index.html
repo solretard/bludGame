@@ -1,32 +1,211 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Hype Sprint - Custom Avatar & Unique Leaderboard</title>
+    <title>Blud Sprint - Custom Avatar & Unique Leaderboard Game</title>
+    <meta name="description"
+        content="Join Blud Sprint, the ultimate high-speed chase! Collect GTD boxes, dodge obstacles, and climb the leaderboard with your custom avatar. Join the hype at blud.ink.">
+    <meta name="keywords"
+        content="runner game, arcade, browser game, leaderboard, custom avatar, gaming, blud sprint, blud, blockchain, crypto game">
+    <link rel="canonical" href="https://blud.ink/">
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://blud.ink/">
+    <meta property="og:title" content="Blud Sprint - Custom Avatar & Unique Leaderboard Game">
+    <meta property="og:description"
+        content="Collect GTD boxes, dodge obstacles, and climb the leaderboard with your custom avatar. Join the hype at blud.ink.">
+    <meta property="og:image" content="https://blud.ink/og-image.png">
+
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary_large_image">
+    <meta property="twitter:url" content="https://blud.ink/">
+    <meta property="twitter:title" content="Blud Sprint - Custom Avatar & Unique Leaderboard Game">
+    <meta property="twitter:description"
+        content="Collect GTD boxes, dodge obstacles, and climb the leaderboard with your custom avatar. Join the hype at blud.ink.">
+    <meta property="twitter:image" content="https://blud.ink/og-image.png">
+
+    <link rel="icon" type="image/png" href="/favicon.png">
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        :root { --sky: #87CEEB; --teal: #00ffcc; --bulls: #ce1141; --gold: #ffd700; }
-        body { background: #111; color: #fff; font-family: sans-serif; margin: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; overflow: hidden; touch-action: none; }
-        #ui { width: 95%; max-width: 800px; display: flex; justify-content: space-between; padding: 10px; font-weight: bold; font-size: clamp(14px, 4vw, 18px); }
-        #game-container { position: relative; border: 2px solid #fff; width: 95vw; aspect-ratio: 800 / 500; max-width: 800px; max-height: 500px; overflow: hidden; background: var(--sky); transition: background 2s ease; }
-        canvas { width: 100%; height: 100%; display: block; image-rendering: pixelated; }
-        .screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); display: flex; flex-direction: column; align-items: center; justify-content: flex-start; z-index: 30; text-align: center; padding: 20px; box-sizing: border-box; overflow-y: auto; }
-        .hidden { display: none !important; }
-        .leaderboard-container { width: 100%; max-width: 400px; margin-top: 15px; background: #222; border-radius: 8px; border: 1px solid #444; }
-        .leaderboard-header { padding: 10px; background: #333; color: var(--teal); font-weight: bold; border-bottom: 1px solid #444; display: flex; justify-content: space-between; font-size: 14px; }
-        .leaderboard-list { max-height: 150px; overflow-y: auto; list-style: none; padding: 0; margin: 0; font-size: 13px; }
-        .leaderboard-item { display: flex; justify-content: space-between; padding: 8px 10px; border-bottom: 1px solid #333; }
-        .rank { color: var(--gold); font-weight: bold; width: 25px; }
-        .addr { flex-grow: 1; text-align: left; margin-left: 10px; opacity: 0.8; }
-        .pts { font-weight: bold; color: var(--teal); }
-        .char-grid { display: flex; gap: 10px; margin: 10px 0; }
-        .char-card { border: 2px solid #444; padding: 8px; cursor: pointer; border-radius: 10px; background: #222; width: 70px; font-size: 11px; }
-        .char-card.selected { border-color: var(--teal); background: #333; transform: scale(1.05); }
-        .wallet-input { padding: 10px; width: 85%; max-width: 250px; background: #222; border: 2px solid var(--teal); color: #fff; margin: 10px 0; text-align: center; border-radius: 8px; font-size: 16px; }
-        button { background: var(--teal); color: #000; border: none; padding: 10px 25px; font-weight: bold; cursor: pointer; border-radius: 5px; text-transform: uppercase; margin-top: 10px; }
+        :root {
+            --sky: #87CEEB;
+            --teal: #00ffcc;
+            --bulls: #ce1141;
+            --gold: #ffd700;
+        }
+
+        body {
+            background: #111;
+            color: #fff;
+            font-family: sans-serif;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            overflow: hidden;
+            touch-action: none;
+        }
+
+        #ui {
+            width: 95%;
+            max-width: 800px;
+            display: flex;
+            justify-content: space-between;
+            padding: 10px;
+            font-weight: bold;
+            font-size: clamp(14px, 4vw, 18px);
+        }
+
+        #game-container {
+            position: relative;
+            border: 2px solid #fff;
+            width: 95vw;
+            aspect-ratio: 800 / 500;
+            max-width: 800px;
+            max-height: 500px;
+            overflow: hidden;
+            background: var(--sky);
+            transition: background 2s ease;
+        }
+
+        canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+            image-rendering: pixelated;
+        }
+
+        .screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.95);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            z-index: 30;
+            text-align: center;
+            padding: 20px;
+            box-sizing: border-box;
+            overflow-y: auto;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .leaderboard-container {
+            width: 100%;
+            max-width: 400px;
+            margin-top: 15px;
+            background: #222;
+            border-radius: 8px;
+            border: 1px solid #444;
+        }
+
+        .leaderboard-header {
+            padding: 10px;
+            background: #333;
+            color: var(--teal);
+            font-weight: bold;
+            border-bottom: 1px solid #444;
+            display: flex;
+            justify-content: space-between;
+            font-size: 14px;
+        }
+
+        .leaderboard-list {
+            max-height: 150px;
+            overflow-y: auto;
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            font-size: 13px;
+        }
+
+        .leaderboard-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 10px;
+            border-bottom: 1px solid #333;
+        }
+
+        .rank {
+            color: var(--gold);
+            font-weight: bold;
+            width: 25px;
+        }
+
+        .addr {
+            flex-grow: 1;
+            text-align: left;
+            margin-left: 10px;
+            opacity: 0.8;
+        }
+
+        .pts {
+            font-weight: bold;
+            color: var(--teal);
+        }
+
+        .char-grid {
+            display: flex;
+            gap: 10px;
+            margin: 10px 0;
+        }
+
+        .char-card {
+            border: 2px solid #444;
+            padding: 8px;
+            cursor: pointer;
+            border-radius: 10px;
+            background: #222;
+            width: 70px;
+            font-size: 11px;
+        }
+
+        .char-card.selected {
+            border-color: var(--teal);
+            background: #333;
+            transform: scale(1.05);
+        }
+
+        .wallet-input {
+            padding: 10px;
+            width: 85%;
+            max-width: 250px;
+            background: #222;
+            border: 2px solid var(--teal);
+            color: #fff;
+            margin: 10px 0;
+            text-align: center;
+            border-radius: 8px;
+            font-size: 16px;
+        }
+
+        button {
+            background: var(--teal);
+            color: #000;
+            border: none;
+            padding: 10px 25px;
+            font-weight: bold;
+            cursor: pointer;
+            border-radius: 5px;
+            text-transform: uppercase;
+            margin-top: 10px;
+        }
     </style>
 </head>
+
 <body>
 
     <div id="ui">
@@ -38,16 +217,26 @@
     <div id="game-container">
         <div id="start-screen" class="screen">
             <h1 style="color:var(--teal); margin: 0;">BLUD SPRINT</h1>
-            <input type="text" id="wallet-field" class="wallet-input" placeholder="Enter Wallet Address">
+            <input type="text" id="wallet-field" class="wallet-input" placeholder="Solana or ETH Wallet">
+            <p id="wallet-error" style="color: #ff4444; font-size: 12px; margin: 0; min-height: 15px;" class="hidden">
+                Invalid Wallet Address</p>
             <div class="char-grid">
-                <div class="char-card selected" onclick="selectChar('bulls', this)"><div style="color:var(--bulls)">BULLS</div></div>
-                <div class="char-card" onclick="selectChar('teal', this)"><div style="color:var(--teal)">TITAN</div></div>
-                <div class="char-card" onclick="selectChar('gold', this)"><div style="color:var(--gold)">GHOST</div></div>
+                <div class="char-card selected" onclick="selectChar('bulls', this)">
+                    <div style="color:var(--bulls)">BULLS</div>
+                </div>
+                <div class="char-card" onclick="selectChar('teal', this)">
+                    <div style="color:var(--teal)">TITAN</div>
+                </div>
+                <div class="char-card" onclick="selectChar('gold', this)">
+                    <div style="color:var(--gold)">GHOST</div>
+                </div>
             </div>
             <button onclick="checkAndStart()">Enter Game</button>
             <div class="leaderboard-container">
                 <div class="leaderboard-header"><span>RANK</span><span>PLAYER</span><span>SCORE</span></div>
-                <ul id="leaderboard-list-start" class="leaderboard-list"><li>Loading top 20...</li></ul>
+                <ul id="leaderboard-list-start" class="leaderboard-list">
+                    <li>Loading top 20...</li>
+                </ul>
             </div>
         </div>
 
@@ -66,14 +255,14 @@
     </div>
 
     <script>
-        const supabaseUrl = 'https://kozrevqywrggxwpvdyvp.supabase.co'; 
-        const supabaseKey = 'sb_publishable_vgSiz3Y39XChvS4X58U_4Q_lbxZK3gt'; 
+        const supabaseUrl = 'https://kozrevqywrggxwpvdyvp.supabase.co';
+        const supabaseKey = 'sb_publishable_vgSiz3Y39XChvS4X58U_4Q_lbxZK3gt';
         const _supabase = supabase.createClient(supabaseUrl, supabaseKey);
 
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        
+
         const sfx = {
             jump: () => playSound(150, 'square', 0.2, 0.1),
             shoot: () => playSound(80, 'sawtooth', 0.1, 0.1),
@@ -82,7 +271,7 @@
         };
 
         function playSound(freq, type, duration, vol) {
-            if(audioCtx.state === 'suspended') return;
+            if (audioCtx.state === 'suspended') return;
             const osc = audioCtx.createOscillator();
             const gain = audioCtx.createGain();
             osc.type = type;
@@ -101,15 +290,15 @@
         const nftBox = { x: 900, y: 200, w: 50, h: 60 };
         const obstacles = [{ x: 800, y: 460 }, { x: 1300, y: 460 }];
         const darts = [{ x: 1000, y: 150, w: 40, h: 10 }, { x: 1600, y: 250, w: 40, h: 10 }];
-        const clouds = [{x: 100, y: 50, s: 0.2}, {x: 400, y: 120, s: 0.35}, {x: 700, y: 80, s: 0.25}];
+        const clouds = [{ x: 100, y: 50, s: 0.2 }, { x: 400, y: 120, s: 0.35 }, { x: 700, y: 80, s: 0.25 }];
         const balls = [];
 
         // Background Assets
         let farmWindmillAngle = 0;
-        const farmCrops = []; 
-        for(let i=0; i<30; i++) farmCrops.push({x: i*30, w: 8, h: 15});
-        const farmElements = [{type: 'barn', x: 250}, {type: 'windmill', x: 600}, {type: 'barn', x: 1100}];
-        const cityBuildings = [{x: 200, w: 60, h: 200}, {x: 450, w: 80, h: 250}, {x: 750, w: 70, h: 180}];
+        const farmCrops = [];
+        for (let i = 0; i < 30; i++) farmCrops.push({ x: i * 30, w: 8, h: 15 });
+        const farmElements = [{ type: 'barn', x: 250 }, { type: 'windmill', x: 600 }, { type: 'barn', x: 1100 }];
+        const cityBuildings = [{ x: 200, w: 60, h: 200 }, { x: 450, w: 80, h: 250 }, { x: 750, w: 70, h: 180 }];
 
         async function fetchLeaderboard() {
             try {
@@ -138,35 +327,53 @@
             gameSpeed = baseSpeed;
         }
 
+        function validateWallet(address) {
+            // Solana: Base58, 32-44 characters
+            const solanaRegex = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
+            // Ethereum: 0x followed by 40 hex chars
+            const ethRegex = /^0x[a-fA-F0-9]{40}$/;
+            return solanaRegex.test(address) || ethRegex.test(address);
+        }
+
         function checkAndStart() {
-            if(document.getElementById('wallet-field').value.length < 5) return alert("Enter Wallet!");
+            const wallet = document.getElementById('wallet-field').value.trim();
+            const errorEl = document.getElementById('wallet-error');
+
+            if (!validateWallet(wallet)) {
+                errorEl.classList.remove('hidden');
+                document.getElementById('wallet-field').style.borderColor = "#ff4444";
+                return;
+            } else {
+                errorEl.classList.add('hidden');
+                document.getElementById('wallet-field').style.borderColor = "var(--teal)";
+            }
             audioCtx.resume();
             document.getElementById('start-screen').classList.add('hidden');
             gameRunning = true;
             loop();
-            setInterval(() => { if(gameRunning) { timeLeft--; let mins = Math.floor(timeLeft / 60), secs = timeLeft % 60; document.getElementById('timer').innerText = `${mins}:${secs < 10 ? '0' : ''}${secs}`; if(timeLeft <= 0) endGame(); } }, 1000);
+            setInterval(() => { if (gameRunning) { timeLeft--; let mins = Math.floor(timeLeft / 60), secs = timeLeft % 60; document.getElementById('timer').innerText = `${mins}:${secs < 10 ? '0' : ''}${secs}`; if (timeLeft <= 0) endGame(); } }, 1000);
         }
 
         function drawBarn(x) {
             const h = 80; const w = 120;
-            ctx.fillStyle = "#a52a2a"; ctx.fillRect(x, 460-h, w, h);
-            ctx.fillStyle = "#888"; ctx.fillRect(x+w, 460-h*1.2, 30, h*1.2);
-            ctx.beginPath(); ctx.arc(x+w+15, 460-h*1.2, 15, Math.PI, 0); ctx.fill();
-            ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.moveTo(x-10, 460-h); ctx.lineTo(x+w/2, 460-h-40); ctx.lineTo(x+w+10, 460-h); ctx.lineTo(x+w/2, 460-h-15); ctx.closePath(); ctx.fill(); 
-            ctx.fillStyle = "#f5f5dc"; ctx.fillRect(x+w/2-20, 460-40, 40, 40);
+            ctx.fillStyle = "#a52a2a"; ctx.fillRect(x, 460 - h, w, h);
+            ctx.fillStyle = "#888"; ctx.fillRect(x + w, 460 - h * 1.2, 30, h * 1.2);
+            ctx.beginPath(); ctx.arc(x + w + 15, 460 - h * 1.2, 15, Math.PI, 0); ctx.fill();
+            ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.moveTo(x - 10, 460 - h); ctx.lineTo(x + w / 2, 460 - h - 40); ctx.lineTo(x + w + 10, 460 - h); ctx.lineTo(x + w / 2, 460 - h - 15); ctx.closePath(); ctx.fill();
+            ctx.fillStyle = "#f5f5dc"; ctx.fillRect(x + w / 2 - 20, 460 - 40, 40, 40);
         }
 
         function drawWindmill(x) {
             const h = 140; const w = 50;
             ctx.strokeStyle = "#8B4513"; ctx.lineWidth = 4;
-            ctx.beginPath(); ctx.moveTo(x, 460); ctx.lineTo(x+w/2, 460-h); ctx.lineTo(x+w, 460); ctx.stroke();
-            ctx.save(); ctx.translate(x+w/2, 460-h); farmWindmillAngle += (gameSpeed * 0.01); ctx.rotate(farmWindmillAngle);
-            ctx.fillStyle = "rgba(200,200,200,0.8)"; for(let i=0; i<4; i++) { ctx.rotate(Math.PI/2); ctx.fillRect(0, -5, 60, 10); } ctx.restore();
+            ctx.beginPath(); ctx.moveTo(x, 460); ctx.lineTo(x + w / 2, 460 - h); ctx.lineTo(x + w, 460); ctx.stroke();
+            ctx.save(); ctx.translate(x + w / 2, 460 - h); farmWindmillAngle += (gameSpeed * 0.01); ctx.rotate(farmWindmillAngle);
+            ctx.fillStyle = "rgba(200,200,200,0.8)"; for (let i = 0; i < 4; i++) { ctx.rotate(Math.PI / 2); ctx.fillRect(0, -5, 60, 10); } ctx.restore();
         }
 
         function drawBuilding(x, w, h) {
             ctx.fillStyle = "#333"; ctx.fillRect(x, 460 - h, w, h);
-            ctx.fillStyle = "rgba(255,255,100,0.5)"; for(let i=10; i<w-10; i+=20) for(let j=10; j<h-20; j+=30) ctx.fillRect(x+i, 460-h+j, 10, 15);
+            ctx.fillStyle = "rgba(255,255,100,0.5)"; for (let i = 10; i < w - 10; i += 20) for (let j = 10; j < h - 20; j += 30) ctx.fillRect(x + i, 460 - h + j, 10, 15);
         }
 
         function throwBall() { balls.push({ x: player.x + player.w, y: player.y + 30, r: 10, vx: 12, vy: -4, bounces: 0 }); sfx.shoot(); }
@@ -187,7 +394,7 @@
             // Body (Jersey)
             ctx.fillStyle = mainColor;
             ctx.fillRect(x + 10, y + 40, 30, 30);
-            
+
             // Gold Chain
             ctx.strokeStyle = "#ffd700"; ctx.lineWidth = 2;
             ctx.beginPath(); ctx.arc(x + 25, y + 42, 6, 0.2, Math.PI - 0.2); ctx.stroke();
@@ -198,73 +405,73 @@
             ctx.fillRect(x + 40 + armSwing, y + 50, 15, 6); // Right arm
 
             // Jersey Number
-            ctx.fillStyle = "#fff"; ctx.font = "bold 10px Arial"; ctx.textAlign="center"; 
+            ctx.fillStyle = "#fff"; ctx.font = "bold 10px Arial"; ctx.textAlign = "center";
             ctx.fillText("00", x + 25, y + 60);
 
             // Head
             ctx.fillStyle = skinTone;
             ctx.fillRect(x + 15, y + 15, 20, 25);
-            
+
             // Hair/Cap
             ctx.fillStyle = "#111";
             ctx.fillRect(x + 15, y + 15, 20, 8);
-            
+
             // Cyan Spike Hair (As per image)
             ctx.fillStyle = "#00ffff";
-            for(let i=0; i<5; i++) {
+            for (let i = 0; i < 5; i++) {
                 ctx.beginPath();
-                ctx.moveTo(x + 16 + (i*4), y + 15);
-                ctx.lineTo(x + 18 + (i*4), y + 5);
-                ctx.lineTo(x + 20 + (i*4), y + 15);
+                ctx.moveTo(x + 16 + (i * 4), y + 15);
+                ctx.lineTo(x + 18 + (i * 4), y + 5);
+                ctx.lineTo(x + 20 + (i * 4), y + 15);
                 ctx.fill();
             }
         }
 
         function loop() {
-            if(!gameRunning) return;
+            if (!gameRunning) return;
             ctx.clearRect(0, 0, 800, 500);
             if (score < 50) {
                 document.getElementById('game-container').style.background = "#87CEEB";
-                clouds.forEach(c => { c.x -= (c.s * gameSpeed * 0.5); if(c.x < -150) c.x = 850; ctx.fillStyle = "rgba(255, 255, 255, 0.8)"; ctx.beginPath(); ctx.arc(c.x, c.y, 30, 0, Math.PI * 2); ctx.arc(c.x + 25, c.y - 10, 35, 0, Math.PI * 2); ctx.arc(c.x + 50, c.y, 30, 0, Math.PI * 2); ctx.fill(); });
+                clouds.forEach(c => { c.x -= (c.s * gameSpeed * 0.5); if (c.x < -150) c.x = 850; ctx.fillStyle = "rgba(255, 255, 255, 0.8)"; ctx.beginPath(); ctx.arc(c.x, c.y, 30, 0, Math.PI * 2); ctx.arc(c.x + 25, c.y - 10, 35, 0, Math.PI * 2); ctx.arc(c.x + 50, c.y, 30, 0, Math.PI * 2); ctx.fill(); });
             } else if (score >= 50 && score < 100) {
                 document.getElementById('game-container').style.background = "#ff7f50";
-                ctx.fillStyle="#228B22"; ctx.fillRect(0, 430, 800, 30);
-                farmCrops.forEach(crop => { crop.x -= (gameSpeed * 0.5); if(crop.x < -30) crop.x = 830; ctx.fillStyle="#ffd700"; ctx.fillRect(crop.x, 460 - crop.h, crop.w, crop.h); });
-                farmElements.forEach(el => { el.x -= (gameSpeed * 0.3); if(el.x < -200) el.x = 1000; if(el.type === 'barn') drawBarn(el.x); if(el.type === 'windmill') drawWindmill(el.x); });
+                ctx.fillStyle = "#228B22"; ctx.fillRect(0, 430, 800, 30);
+                farmCrops.forEach(crop => { crop.x -= (gameSpeed * 0.5); if (crop.x < -30) crop.x = 830; ctx.fillStyle = "#ffd700"; ctx.fillRect(crop.x, 460 - crop.h, crop.w, crop.h); });
+                farmElements.forEach(el => { el.x -= (gameSpeed * 0.3); if (el.x < -200) el.x = 1000; if (el.type === 'barn') drawBarn(el.x); if (el.type === 'windmill') drawWindmill(el.x); });
             } else {
                 document.getElementById('game-container').style.background = "#2c3e50";
-                cityBuildings.forEach(b => { b.x -= (gameSpeed * 0.4); if(b.x < -100) b.x = 900; drawBuilding(b.x, b.w, b.h); });
+                cityBuildings.forEach(b => { b.x -= (gameSpeed * 0.4); if (b.x < -100) b.x = 900; drawBuilding(b.x, b.w, b.h); });
             }
             ctx.fillStyle = "#444"; ctx.fillRect(0, 460, 800, 40);
             document.getElementById('speed-lvl').innerText = (gameSpeed / baseSpeed).toFixed(1);
-            nftBox.x -= gameSpeed; if(nftBox.x < -100) { nftBox.x = 900; nftBox.y = 150 + Math.random()*200; }
+            nftBox.x -= gameSpeed; if (nftBox.x < -100) { nftBox.x = 900; nftBox.y = 150 + Math.random() * 200; }
             ctx.fillStyle = "#111"; ctx.strokeStyle = "gold"; ctx.lineWidth = 3; ctx.fillRect(nftBox.x, nftBox.y, nftBox.w, nftBox.h); ctx.strokeRect(nftBox.x, nftBox.y, nftBox.w, nftBox.h);
             ctx.fillStyle = "gold"; ctx.font = "bold 16px Arial"; ctx.textAlign = "center"; ctx.fillText("GTD", nftBox.x + 25, nftBox.y + 35);
-            balls.forEach((b, bIdx) => { b.vy += 0.5; b.x += b.vx; b.y += b.vy; if(b.y + b.r > 460) { b.y = 460 - b.r; b.vy *= -0.6; b.bounces++; } ctx.fillStyle = "orange"; ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, Math.PI*2); ctx.fill(); if(b.x > 850 || b.bounces > 4) balls.splice(bIdx, 1); });
-            obstacles.forEach((obs) => { obs.x -= gameSpeed; if(obs.x < -100) obs.x = 1000 + Math.random()*600; ctx.fillStyle = "red"; ctx.beginPath(); ctx.moveTo(obs.x, 460); ctx.lineTo(obs.x+20, 420); ctx.lineTo(obs.x+40, 460); ctx.fill(); balls.forEach((b, bIdx) => { if(b.x > obs.x && b.x < obs.x + 40 && b.y > 410) { obs.x = -200; balls.splice(bIdx, 1); score += 5; } }); if(player.x < obs.x+30 && player.x+player.w > obs.x && player.y+player.h > 420) endGame(); });
-            darts.forEach((d) => { d.x -= (gameSpeed + 3); if(d.x < -100) { d.x = 1200 + Math.random()*800; d.y = 100 + Math.random()*250; } ctx.fillStyle = "#333"; ctx.fillRect(d.x, d.y, d.w, d.h); balls.forEach((b, bIdx) => { if(b.x > d.x && b.x < d.x+d.w && b.y > d.y && b.y < d.y+d.h) { d.x = -200; balls.splice(bIdx, 1); score += 15; } }); if(player.x < d.x + d.w && player.x + player.w > d.x && player.y < d.y + d.h && player.y + player.h > d.y) endGame(); });
-            player.vy += gravity; player.y += player.vy; if(player.y + player.h > 460) { player.y = 460 - player.h; player.vy = 0; player.grounded = true; }
-            if(player.x < nftBox.x + nftBox.w && player.x + player.w > nftBox.x && player.y < nftBox.y + nftBox.h && player.y + player.h > nftBox.y) { score += 10; document.getElementById('score').innerText = score; nftBox.x = -200; gameSpeed += 0.4; sfx.collect(); }
+            balls.forEach((b, bIdx) => { b.vy += 0.5; b.x += b.vx; b.y += b.vy; if (b.y + b.r > 460) { b.y = 460 - b.r; b.vy *= -0.6; b.bounces++; } ctx.fillStyle = "orange"; ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2); ctx.fill(); if (b.x > 850 || b.bounces > 4) balls.splice(bIdx, 1); });
+            obstacles.forEach((obs) => { obs.x -= gameSpeed; if (obs.x < -100) obs.x = 1000 + Math.random() * 600; ctx.fillStyle = "red"; ctx.beginPath(); ctx.moveTo(obs.x, 460); ctx.lineTo(obs.x + 20, 420); ctx.lineTo(obs.x + 40, 460); ctx.fill(); balls.forEach((b, bIdx) => { if (b.x > obs.x && b.x < obs.x + 40 && b.y > 410) { obs.x = -200; balls.splice(bIdx, 1); score += 5; } }); if (player.x < obs.x + 30 && player.x + player.w > obs.x && player.y + player.h > 420) endGame(); });
+            darts.forEach((d) => { d.x -= (gameSpeed + 3); if (d.x < -100) { d.x = 1200 + Math.random() * 800; d.y = 100 + Math.random() * 250; } ctx.fillStyle = "#333"; ctx.fillRect(d.x, d.y, d.w, d.h); balls.forEach((b, bIdx) => { if (b.x > d.x && b.x < d.x + d.w && b.y > d.y && b.y < d.y + d.h) { d.x = -200; balls.splice(bIdx, 1); score += 15; } }); if (player.x < d.x + d.w && player.x + player.w > d.x && player.y < d.y + d.h && player.y + player.h > d.y) endGame(); });
+            player.vy += gravity; player.y += player.vy; if (player.y + player.h > 460) { player.y = 460 - player.h; player.vy = 0; player.grounded = true; }
+            if (player.x < nftBox.x + nftBox.w && player.x + player.w > nftBox.x && player.y < nftBox.y + nftBox.h && player.y + player.h > nftBox.y) { score += 10; document.getElementById('score').innerText = score; nftBox.x = -200; gameSpeed += 0.4; sfx.collect(); }
             drawAvatar(player.x, player.y); requestAnimationFrame(loop);
         }
 
         async function endGame() {
-            if(!gameRunning) return; gameRunning = false; sfx.die();
+            if (!gameRunning) return; gameRunning = false; sfx.die();
             const wallet = document.getElementById('wallet-field').value;
             const finalScore = score; document.getElementById('final-score').innerText = finalScore;
             document.getElementById('game-over-screen').classList.remove('hidden');
-            
+
             try {
                 // Check if user exists and has a higher score
                 const { data: existing } = await _supabase.from('leaderboard').select('score').eq('wallet_address', wallet).single();
-                
+
                 if (!existing || finalScore > existing.score) {
-                    const { error } = await _supabase.from('leaderboard').upsert({ 
-                        wallet_address: wallet, 
-                        score: finalScore, 
-                        character_type: selectedChar 
+                    const { error } = await _supabase.from('leaderboard').upsert({
+                        wallet_address: wallet,
+                        score: finalScore,
+                        character_type: selectedChar
                     }, { onConflict: 'wallet_address' });
-                    
+
                     if (error) throw error;
                     document.getElementById('sync-status').innerText = existing ? "New Personal Best!" : "Score saved!";
                     document.getElementById('sync-status').style.color = "#00ffcc";
@@ -272,16 +479,17 @@
                     document.getElementById('sync-status').innerText = "Try harder for a high score!";
                 }
                 await fetchLeaderboard();
-            } catch (err) { 
-                document.getElementById('sync-status').innerText = "Sync failed."; 
-                document.getElementById('sync-status').style.color = "#ff4444"; 
+            } catch (err) {
+                document.getElementById('sync-status').innerText = "Sync failed.";
+                document.getElementById('sync-status').style.color = "#ff4444";
             }
         }
 
         let touchStartY = 0;
-        canvas.addEventListener('touchstart', e => { touchStartY = e.changedTouches[0].clientY; e.preventDefault(); }, {passive: false});
-        canvas.addEventListener('touchend', e => { if(!gameRunning) return; let swipeDist = touchStartY - e.changedTouches[0].clientY; if (swipeDist > 20) { if(player.grounded) { player.vy = player.jump; sfx.jump(); } } else if (swipeDist < -20) { throwBall(); } else { if(player.grounded) { player.vy = player.jump; sfx.jump(); } } e.preventDefault(); }, {passive: false});
-        window.onkeydown = (e) => { if((e.code === 'Space' || e.code === 'ArrowUp') && player.grounded) { player.vy = player.jump; sfx.jump(); } if((e.code === 'KeyF' || e.code === 'Enter') && gameRunning) throwBall(); };
+        canvas.addEventListener('touchstart', e => { touchStartY = e.changedTouches[0].clientY; e.preventDefault(); }, { passive: false });
+        canvas.addEventListener('touchend', e => { if (!gameRunning) return; let swipeDist = touchStartY - e.changedTouches[0].clientY; if (swipeDist > 20) { if (player.grounded) { player.vy = player.jump; sfx.jump(); } } else if (swipeDist < -20) { throwBall(); } else { if (player.grounded) { player.vy = player.jump; sfx.jump(); } } e.preventDefault(); }, { passive: false });
+        window.onkeydown = (e) => { if ((e.code === 'Space' || e.code === 'ArrowUp') && player.grounded) { player.vy = player.jump; sfx.jump(); } if ((e.code === 'KeyF' || e.code === 'Enter') && gameRunning) throwBall(); };
     </script>
 </body>
+
 </html>
